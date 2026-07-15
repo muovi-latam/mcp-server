@@ -1,0 +1,62 @@
+{
+  "name": "@muovi/mcp-server",
+  "mcpName": "ar.com.muovi/mcp-server",
+  "version": "0.1.2",
+  "description": "Model Context Protocol (MCP) server that exposes Muovi's public /v1 API to LLM agents (Claude Desktop, Cursor, Claude Code). Read-only, stdio mode.",
+  "license": "MIT",
+  "author": "Muovi <hola@muovi.com.ar> (https://muovi.com.ar)",
+  "homepage": "https://muovi.com.ar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mmiani/mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mmiani/mcp-server/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "muovi",
+    "argentina",
+    "service-marketplace",
+    "claude",
+    "llm-tools"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "muovi-mcp-server": "bin/muovi-mcp-server.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run clean && npm run build && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "js-yaml": "^4.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

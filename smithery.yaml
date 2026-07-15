@@ -1,0 +1,15 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      MUOVI_API_KEY:
+        type: string
+        description: "Optional. Muovi API key for higher rate-limit tier. Public tier requires no key."
+    required: []
+  commandFunction: |-
+    (config) => ({
+      command: 'npx',
+      args: ['-y', '@muovi/mcp-server'],
+      env: config.MUOVI_API_KEY ? { MUOVI_API_KEY: config.MUOVI_API_KEY } : {}
+    })
