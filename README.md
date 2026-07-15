@@ -4,7 +4,7 @@
 
 **Model Context Protocol (MCP) server for [Muovi](https://muovi.com.ar)** — LATAM's trust-first local services marketplace.
 
-This package lets MCP-aware clients (Claude Desktop, Cursor, Claude Code, and any other MCP host) discover Muovi's verified Argentine service professionals, browse the service catalog and city list, read reviews, and deep-link a user into the on-platform task-creation flow. It is a thin, read-only wrapper over Muovi's public [`/v1` REST API](https://muovi.com.ar/openapi.yaml).
+This package lets MCP-aware clients (Claude Desktop, Cursor, Claude Code, and any other MCP host) discover Muovi's verified LATAM service professionals, browse the service catalog and city list, read reviews, and deep-link a user into the on-platform task-creation flow. It is a thin, read-only wrapper over Muovi's public [`/v1` REST API](https://muovi.com.ar/openapi.yaml).
 
 **Stdio mode.** The package ships an `npx`-runnable binary that speaks JSON-RPC over stdin/stdout. The hosted HTTP/SSE variant is tracked separately (Muovi MOB-142).
 
