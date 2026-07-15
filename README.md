@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/%40muovi%2Fmcp-server.svg)](https://www.npmjs.com/package/@muovi/mcp-server)
 
-**Model Context Protocol (MCP) server for [Muovi](https://muovi.com.ar)** — Argentina's trust-first local services marketplace.
+**Model Context Protocol (MCP) server for [Muovi](https://muovi.com.ar)** — LATAM's trust-first local services marketplace.
 
 This package lets MCP-aware clients (Claude Desktop, Cursor, Claude Code, and any other MCP host) discover Muovi's verified Argentine service professionals, browse the service catalog and city list, read reviews, and deep-link a user into the on-platform task-creation flow. It is a thin, read-only wrapper over Muovi's public [`/v1` REST API](https://muovi.com.ar/openapi.yaml).
 
