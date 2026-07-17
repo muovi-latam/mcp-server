@@ -28,7 +28,7 @@ Muovi is on-platform-only. **Phone, email, and WhatsApp handles are never return
 This server enforces the policy twice:
 
 1. The `/v1` API strips contact data server-side.
-2. Every tool response in this package also runs through a local anti-leakage detector (a Node-compatible mirror of [`src/lib/anti-leakage/detector.ts`](https://github.com/muovi-ar/muovi-web/blob/main/src/lib/anti-leakage/detector.ts) in the Muovi web repo). If a leak is detected at the agent boundary the tool returns a stable error to the LLM client and refuses to surface the payload.
+2. Every tool response in this package also runs through a local anti-leakage detector (a Node-compatible mirror of [`src/lib/anti-leakage/detector.ts`](https://github.com/muovi-latam/muovi-web/blob/main/src/lib/anti-leakage/detector.ts) in the Muovi web repo). If a leak is detected at the agent boundary the tool returns a stable error to the LLM client and refuses to surface the payload.
 
 Hosts that integrate this server **must not** synthesise off-platform contact handles from any field. Driving the user to `profile_url` (optionally with the deep-link query string) is the only sanctioned contact channel.
 
@@ -138,10 +138,11 @@ Step 8 — the on-platform flow — is Muovi's enforcement point for trust, paym
 
 ## Local development
 
-This package lives inside the Muovi web monorepo under [`packages/mcp-server/`](https://github.com/muovi-ar/muovi-web/tree/main/packages/mcp-server) but has its own `package.json` and `node_modules` (no npm workspaces — fully standalone for publishing).
+This package is the standalone [`muovi-latam/mcp-server`](https://github.com/muovi-latam/mcp-server) repo. Clone it, install, and run tests:
 
 ```bash
-cd packages/mcp-server
+git clone git@github.com:muovi-latam/mcp-server.git
+cd mcp-server
 npm install
 npm test            # unit + integration + OpenAPI drift checks
 npm run typecheck   # strict TypeScript
@@ -155,7 +156,6 @@ The OpenAPI drift test parses `public/openapi.yaml` and asserts each tool's inpu
 `npm publish` is intentionally **not** wired into CI. Releases are cut manually from a clean tag:
 
 ```bash
-cd packages/mcp-server
 npm version patch    # or minor / major
 npm publish --access public
 git push --follow-tags
@@ -174,14 +174,13 @@ Beyond npm, this server is listed in the [Model Context Protocol registry](https
 Prove ownership of the `ar.com.muovi` namespace once, before the first publish:
 
 - **DNS (preferred):** add the TXT record that `mcp-publisher login dns` prints to the `muovi.com.ar` zone, then authenticate against that domain. This ties the namespace to the domain we already control.
-- **GitHub OAuth (fallback):** `mcp-publisher login github` — authenticates via the `muovi-ar` GitHub org. Only use this if DNS verification is unavailable; the authenticated identity still has to line up with the committed `ar.com.muovi/mcp-server` namespace.
+- **GitHub OAuth (fallback):** `mcp-publisher login github` — authenticates via the `muovi-latam` GitHub org. Only use this if DNS verification is unavailable; the authenticated identity still has to line up with the committed `ar.com.muovi/mcp-server` namespace.
 
 If the committed namespace and the authenticated identity disagree, `mcp-publisher publish` will reject the manifest — fix the namespace (in both files) or the login, do not force it.
 
 #### Publish steps
 
 ```bash
-cd packages/mcp-server
 mcp-publisher validate ./server.json   # checks against the live registry schema
 mcp-publisher publish                   # publishes server.json under the authenticated namespace
 ```
@@ -213,3 +212,4 @@ The manifest advertises capabilities that are not yet fully live. Keep these cav
 - [Muovi](https://muovi.com.ar)
 - [Public `/v1` API spec](https://muovi.com.ar/openapi.yaml)
 - [Model Context Protocol](https://modelcontextprotocol.io)
+- [Report an issue](https://github.com/muovi-latam/mcp-server/issues)
