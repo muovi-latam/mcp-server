@@ -114,7 +114,7 @@ export class MuoviApiClient {
     const url = this.buildUrl(path, query);
     const headers: Record<string, string> = {
       Accept: 'application/json',
-      'User-Agent': `${this.connectorId}/0.1.3 (+https://muovi.com.ar)`,
+      'User-Agent': `${this.connectorId}/0.1.4 (+https://muovi.com.ar)`,
       'X-Muovi-Connector': this.connectorId,
     };
     if (this.apiKey) {
