@@ -1,14 +1,14 @@
 {
   "name": "@muovi/mcp-server",
   "mcpName": "ar.com.muovi/mcp-server",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Model Context Protocol (MCP) server that exposes Muovi's public /v1 API to LLM agents (Claude Desktop, Cursor, Claude Code). Read-only, stdio mode.",
   "license": "MIT",
   "author": "Muovi <hola@muovi.com.ar> (https://muovi.com.ar)",
   "homepage": "https://muovi.com.ar",
   "repository": {
     "type": "git",
-    "url": "https://github.com/muovi-latam/mcp-server.git"
+    "url": "git+https://github.com/muovi-latam/mcp-server.git"
   },
   "bugs": {
     "url": "https://github.com/muovi-latam/mcp-server/issues"
@@ -18,7 +18,10 @@
     "model-context-protocol",
     "muovi",
     "argentina",
+    "latam",
+    "local-services",
     "service-marketplace",
+    "home-services",
     "claude",
     "llm-tools"
   ],

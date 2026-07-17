@@ -57,7 +57,7 @@ export interface BuildServerOptions {
 }
 
 export const PACKAGE_NAME = '@muovi/mcp-server';
-export const PACKAGE_VERSION = '0.1.2';
+export const PACKAGE_VERSION = '0.1.3';
 
 export const TOOL_NAMES = [
   SEARCH_PROFESSIONALS_NAME,

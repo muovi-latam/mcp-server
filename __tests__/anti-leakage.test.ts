@@ -2,7 +2,8 @@
  * MCP server anti-leakage assertion test.
  *
  * MOB-146's surface registry references THIS path
- * (`packages/mcp-server/__tests__/anti-leakage.test.ts`) — keep it stable.
+ * (`__tests__/anti-leakage.test.ts` — was `packages/mcp-server/__tests__/anti-leakage.test.ts`
+ * before the standalone-repo split) — keep it stable.
  *
  * Defense-in-depth: the /v1 API already strips contact data, but every
  * tool response in the MCP server also runs through `assertNoLeakage`.
