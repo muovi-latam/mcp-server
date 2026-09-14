@@ -13,6 +13,8 @@
  * Kept dependency-free: relies on Node's built-in `fetch` (Node 18+).
  */
 
+import { PACKAGE_VERSION } from './version.js';
+
 export interface MuoviApiClientOptions {
   baseUrl?: string;
   apiKey?: string;
@@ -110,19 +112,38 @@ export class MuoviApiClient {
     return url.toString();
   }
 
-  async get<T>(path: string, query?: Record<string, unknown>): Promise<T> {
-    const url = this.buildUrl(path, query);
+  private headers(extra: Record<string, string> = {}): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: 'application/json',
-      'User-Agent': `${this.connectorId}/0.1.4 (+https://muovi.com.ar)`,
+      'User-Agent': `${this.connectorId}/${PACKAGE_VERSION} (+https://muovi.com.ar)`,
       'X-Muovi-Connector': this.connectorId,
+      ...extra,
     };
     if (this.apiKey) {
       headers['X-API-Key'] = this.apiKey;
     }
+    return headers;
+  }
 
-    const response = await this.fetchImpl(url, { method: 'GET', headers });
+  async get<T>(path: string, query?: Record<string, unknown>): Promise<T> {
+    const response = await this.fetchImpl(this.buildUrl(path, query), {
+      method: 'GET',
+      headers: this.headers(),
+    });
+    return this.parse<T>(response);
+  }
 
+  /** POSTs `body` as JSON. Errors decode the same `/v1` envelope as `get`. */
+  async post<T>(path: string, body: unknown): Promise<T> {
+    const response = await this.fetchImpl(this.buildUrl(path), {
+      method: 'POST',
+      headers: this.headers({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+    return this.parse<T>(response);
+  }
+
+  private async parse<T>(response: Response): Promise<T> {
     if (response.status === 429) {
       const retryAfter = parseRetryAfter(response.headers.get('retry-after'));
       let body: ApiErrorBody = {};

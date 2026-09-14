@@ -1,5 +1,5 @@
 /**
- * Muovi MCP server (stdio mode) — registers the 6 public-API tools on a
+ * Muovi MCP server (stdio mode) — registers the public-API tools on a
  * configurable MCP server instance.
  *
  * Hosted HTTP/SSE variant lives in MOB-142 (separate package surface);
@@ -8,6 +8,7 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { MuoviApiClient, type MuoviApiClientOptions } from './api-client.js';
+import { PACKAGE_NAME, PACKAGE_VERSION } from './version.js';
 import {
   SEARCH_PROFESSIONALS_NAME,
   SEARCH_PROFESSIONALS_DESCRIPTION,
@@ -44,6 +45,12 @@ import {
   createTaskLinkInputShape,
   makeCreateTaskLinkHandler,
 } from './tools/createTaskLink.js';
+import {
+  CREATE_TASK_DRAFT_NAME,
+  CREATE_TASK_DRAFT_DESCRIPTION,
+  createTaskDraftInputShape,
+  makeCreateTaskDraftHandler,
+} from './tools/createTaskDraft.js';
 
 export interface BuildServerOptions {
   /** Forwarded to MuoviApiClient. Lets tests inject a fake fetch. */
@@ -56,8 +63,7 @@ export interface BuildServerOptions {
   version?: string;
 }
 
-export const PACKAGE_NAME = '@muovi/mcp-server';
-export const PACKAGE_VERSION = '0.1.4';
+export { PACKAGE_NAME, PACKAGE_VERSION } from './version.js';
 
 export const TOOL_NAMES = [
   SEARCH_PROFESSIONALS_NAME,
@@ -66,6 +72,7 @@ export const TOOL_NAMES = [
   LIST_CITIES_NAME,
   GET_REVIEWS_NAME,
   CREATE_TASK_LINK_NAME,
+  CREATE_TASK_DRAFT_NAME,
 ] as const;
 
 export function buildServer(opts: BuildServerOptions = {}): McpServer {
@@ -146,6 +153,23 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       },
     },
     makeCreateTaskLinkHandler({ baseUrl: opts.webBaseUrl }),
+  );
+
+  server.registerTool(
+    CREATE_TASK_DRAFT_NAME,
+    {
+      title: 'Create task draft',
+      description: CREATE_TASK_DRAFT_DESCRIPTION,
+      inputSchema: createTaskDraftInputShape,
+      annotations: {
+        // Stores a draft on Muovi; each call stores a new one.
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    makeCreateTaskDraftHandler(client),
   );
 
   return server;

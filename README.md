@@ -4,13 +4,13 @@
 
 **Model Context Protocol (MCP) server for [Muovi](https://muovi.com.ar)** — LATAM's trust-first local services marketplace.
 
-This package lets MCP-aware clients (Claude Desktop, Cursor, Claude Code, and any other MCP host) discover Muovi's verified LATAM service professionals, browse the service catalog and city list, read reviews, and deep-link a user into the on-platform task-creation flow. It is a thin, read-only wrapper over Muovi's public [`/v1` REST API](https://muovi.com.ar/openapi.yaml).
+This package lets MCP-aware clients (Claude Desktop, Cursor, Claude Code, and any other MCP host) discover Muovi's verified LATAM service professionals, browse the service catalog and city list, read reviews, deep-link a user into the on-platform task-creation flow, and save a task draft the user publishes themselves. It is a thin wrapper over Muovi's public [`/v1` REST API](https://muovi.com.ar/openapi.yaml).
 
 **Stdio mode.** The package ships an `npx`-runnable binary that speaks JSON-RPC over stdin/stdout. The hosted HTTP/SSE variant is tracked separately (Muovi MOB-142).
 
 ## What it exposes
 
-Six tools, all read-only:
+Every tool is read-only except `muovi_create_task_draft`, which saves a draft on Muovi:
 
 | Tool | Wraps | Purpose |
 | --- | --- | --- |
@@ -20,6 +20,7 @@ Six tools, all read-only:
 | `muovi_list_cities` | `GET /v1/cities` | Every Argentine city Muovi serves, with neighborhoods. |
 | `muovi_get_reviews` | `GET /v1/professionals/{slug}/reviews` | Paginated reviews for a pro, most-recent first. |
 | `muovi_create_task_link` | (pure formatter) | Builds the canonical deep-link the user should follow to start a task with a specific pro for a specific service. Makes no HTTP call. |
+| `muovi_create_task_draft` | `POST /v1/task-handovers` | Saves a task draft (service, description, optional zone, preferred time and professional) and returns a link that expires in 24 hours if nobody signs in with it. The user opens it, signs in, reviews the draft and publishes it; the tool publishes nothing. With a professional, publishing may hold the task for that pro for 24 hours if they are still available on Muovi. |
 
 ## Anti-leakage policy
 
@@ -131,10 +132,10 @@ A typical Claude conversation that uses these tools:
 4. Agent calls `muovi_search_professionals` with `{ service: "electricidad", city: "caba", neighborhood: "palermo", has_matricula: true, min_rating: 4.5 }`.
 5. Agent picks the top pro and calls `muovi_get_professional` for the full bio + portfolio.
 6. Agent optionally calls `muovi_get_reviews` for social proof.
-7. Agent calls `muovi_create_task_link` with `{ professional_slug, service_slug: "electricidad" }` and surfaces the resulting URL.
-8. User follows the link, lands on Muovi, completes the on-platform task creation flow.
+7. Agent calls `muovi_create_task_link` with `{ professional_slug, service_slug: "electricidad" }` and surfaces the resulting URL — or calls `muovi_create_task_draft` with `{ service_slug: "electricidad", professional_slug, description }` so the user lands on a draft already written.
+8. User follows the link, lands on Muovi, signs in, and publishes the task in the on-platform flow.
 
-Step 8 — the on-platform flow — is Muovi's enforcement point for trust, payments, and disputes. MCP never bypasses it.
+Step 8 — the on-platform flow — is where the task is published, and where payments and disputes run.
 
 ## Local development
 
@@ -201,6 +202,7 @@ The `server-json` test asserts that four version fields agree. On **every** vers
 The manifest advertises capabilities that are not yet fully live. Keep these caveats in mind (and do not overstate them to users):
 
 - **Remote transport** (`remotes[].url` = `https://mcp.muovi.com.ar/`) is only truthful once that endpoint reliably answers JSON-RPC `initialize` over streamable-HTTP. That hosted surface is tracked in **MOB-207**; until it lands, the **stdio** package (`npx @muovi/mcp-server`) is the only transport that actually works.
+- **`muovi_create_task_draft`** answers "not available" while task handovers are switched off on the server (`TASK_HANDOVERS_ENABLED`), which is the default.
 - **`muovi_get_professional`** and **`muovi_get_reviews`** remain broken against production until **MOB-263** deploys the backing `/v1` endpoints. The tools are registered and pass drift checks, but live calls will fail until then.
 
 ## License
