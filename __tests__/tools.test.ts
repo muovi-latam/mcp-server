@@ -9,6 +9,7 @@
  *   - 429 → RateLimitedError surfacing.
  *   - `MUOVI_API_KEY` env var → `X-API-Key` header forwarding.
  *   - `muovi_create_task_link` never invokes fetch.
+ *   - `muovi_create_task_draft` POSTs its arguments and maps the replies.
  */
 import { describe, expect, it } from 'vitest';
 import { MuoviApiClient } from '../src/api-client.js';
@@ -21,6 +22,10 @@ import {
   buildTaskLink,
   makeCreateTaskLinkHandler,
 } from '../src/tools/createTaskLink.js';
+import {
+  CREATE_TASK_DRAFT_NOTE,
+  makeCreateTaskDraftHandler,
+} from '../src/tools/createTaskDraft.js';
 import {
   cleanCitiesResponse,
   cleanProfessionalDetail,
@@ -182,6 +187,117 @@ describe('muovi_create_task_link (PURE FORMATTER)', () => {
   });
 });
 
+interface RecordedRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string | undefined;
+}
+
+function recordingFetch(
+  status: number,
+  body: unknown,
+): { fetch: typeof fetch; requests: RecordedRequest[] } {
+  const requests: RecordedRequest[] = [];
+  const fakeFetch: typeof fetch = async (input, init) => {
+    requests.push({
+      url: String(input),
+      method: init?.method ?? 'GET',
+      headers: (init?.headers ?? {}) as Record<string, string>,
+      body: typeof init?.body === 'string' ? init.body : undefined,
+    });
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  return { fetch: fakeFetch, requests };
+}
+
+const TOKEN_URL = 'https://muovi.com.ar/post-task#handover=QwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJk';
+
+describe('muovi_create_task_draft', () => {
+  const args = {
+    service_slug: 'electricidad',
+    professional_slug: 'juan-p-electricista-caba',
+    description: 'Se corta la luz cuando prendo el horno y el aire a la vez.',
+    zone_text: 'Palermo',
+    preferred_time: 'specific_date' as const,
+    preferred_date: '2026-09-20',
+  };
+
+  it('POSTs the arguments as JSON to /task-handovers and returns the link', async () => {
+    const { fetch, requests } = recordingFetch(201, {
+      url: TOKEN_URL,
+      expires_at: '2026-09-15T14:50:09.123Z',
+    });
+    const client = new MuoviApiClient({ baseUrl: BASE, fetch });
+    const result = await makeCreateTaskDraftHandler(client)(args);
+
+    expect(result.isError).toBeUndefined();
+    expect(JSON.parse(result.content[0].text)).toEqual({
+      url: TOKEN_URL,
+      expires_at: '2026-09-15T14:50:09.123Z',
+      note: CREATE_TASK_DRAFT_NOTE,
+    });
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toBe('https://muovi.com.ar/api/v1/task-handovers');
+    expect(requests[0].method).toBe('POST');
+    expect(requests[0].headers['Content-Type']).toBe('application/json');
+    expect(JSON.parse(requests[0].body ?? 'null')).toEqual(args);
+  });
+
+  it('re-serialises a microsecond expires_at so the anti-leakage check lets the link through', async () => {
+    const { fetch } = recordingFetch(201, {
+      url: TOKEN_URL,
+      expires_at: '2026-09-15T14:50:09.123456+00:00',
+    });
+    const client = new MuoviApiClient({ baseUrl: BASE, fetch });
+    const result = await makeCreateTaskDraftHandler(client)(args);
+
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.url).toBe(TOKEN_URL);
+    expect(parsed.expires_at).toBe('2026-09-15T14:50:09.123Z');
+  });
+
+  it('reports a 404 as creation not being available', async () => {
+    const { fetch } = recordingFetch(404, { error: { code: 'not_found', message: 'Not found' } });
+    const client = new MuoviApiClient({ baseUrl: BASE, fetch });
+    const result = await makeCreateTaskDraftHandler(client)(args);
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toBe(
+      'Muovi MCP tool error (muovi_create_task_draft): Creating task drafts on Muovi is not available right now.',
+    );
+  });
+
+  it('surfaces an invalid_parameter reply with its code and message', async () => {
+    const { fetch } = recordingFetch(400, {
+      error: {
+        code: 'invalid_parameter',
+        message: 'description must be between 20 and 2000 characters.',
+        details: { parameter: 'description' },
+      },
+    });
+    const client = new MuoviApiClient({ baseUrl: BASE, fetch });
+    const result = await makeCreateTaskDraftHandler(client)({ ...args, description: 'corto' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('status 400, code invalid_parameter');
+    expect(result.content[0].text).toContain('description must be between 20 and 2000 characters.');
+  });
+
+  it('returns a tool error when the 201 body carries no url', async () => {
+    const { fetch } = recordingFetch(201, { expires_at: '2026-09-15T14:50:09.123Z' });
+    const client = new MuoviApiClient({ baseUrl: BASE, fetch });
+    const result = await makeCreateTaskDraftHandler(client)(args);
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('without a url and expires_at');
+  });
+});
+
 describe('MuoviApiClient — auth + rate limiting', () => {
   it('forwards MUOVI_API_KEY as X-API-Key header', async () => {
     const seenHeaders: Record<string, string> = {};
@@ -201,6 +317,19 @@ describe('MuoviApiClient — auth + rate limiting', () => {
     await client.get('/services');
     expect(seenHeaders['X-API-Key']).toBe('test-key-abc');
     expect(seenHeaders['X-Muovi-Connector']).toBe('muovi-mcp-server');
+  });
+
+  it('sends the package version in the User-Agent on GET and POST', async () => {
+    const { fetch, requests } = recordingFetch(200, cleanServicesResponse);
+    const client = new MuoviApiClient({ baseUrl: BASE, fetch });
+
+    await client.get('/services');
+    await client.post('/task-handovers', {});
+
+    expect(requests.map((request) => request.headers['User-Agent'])).toEqual([
+      'muovi-mcp-server/0.2.0 (+https://muovi.com.ar)',
+      'muovi-mcp-server/0.2.0 (+https://muovi.com.ar)',
+    ]);
   });
 
   it('does NOT send X-API-Key when no apiKey provided', async () => {

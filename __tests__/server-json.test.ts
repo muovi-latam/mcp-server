@@ -40,6 +40,7 @@ interface ServerJsonRemote {
 }
 
 interface ServerJson {
+  $schema: string;
   name: string;
   description: string;
   version: string;
@@ -62,6 +63,13 @@ describe('server.json — MCP registry manifest mirrors package + source', () =>
     expect(() => readJson<ServerJson>(SERVER_JSON_PATH)).not.toThrow();
   });
 
+  it('declares the 2025-12-11 registry schema and carries no status key', () => {
+    const server = readJson<ServerJson>(SERVER_JSON_PATH);
+
+    expect(server.$schema).toBe('https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json');
+    expect(Object.keys(server)).not.toContain('status');
+  });
+
   it('namespace matches package.json mcpName exactly', () => {
     const server = readJson<ServerJson>(SERVER_JSON_PATH);
     const pkg = readJson<PackageJson>(PACKAGE_JSON_PATH);
@@ -76,6 +84,7 @@ describe('server.json — MCP registry manifest mirrors package + source', () =>
 
     expect(server.version).toBe(pkg.version);
     expect(server.version).toBe(PACKAGE_VERSION);
+    expect(PACKAGE_VERSION).toBe('0.2.0');
     expect(server.packages).toHaveLength(1);
     expect(server.packages[0]?.version).toBe(PACKAGE_VERSION);
   });

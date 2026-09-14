@@ -3,9 +3,11 @@
  * API client and invoke each registered tool through the SDK's in-memory
  * transport pair. Asserts that:
  *
- *   1. All 6 tools are registered.
+ *   1. Every `TOOL_NAMES` entry is registered.
  *   2. Each tool, when called, returns conformant data shaped like /v1.
  *   3. `muovi_create_task_link` resolves without touching fetch.
+ *   4. `muovi_create_task_draft` is annotated as a write and POSTs through
+ *      the SDK.
  *
  * Uses `InMemoryTransport` from `@modelcontextprotocol/sdk` (the SDK's
  * supported way to drive an MCP server in tests) instead of spawning a
@@ -49,7 +51,7 @@ async function bootClient(client: MuoviApiClient): Promise<{
 }
 
 describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', () => {
-  it('registers all 6 tools with descriptions', async () => {
+  it('registers every TOOL_NAMES entry, including muovi_create_task_draft, with descriptions', async () => {
     const { fetch } = makeMockFetch([]);
     const apiClient = new MuoviApiClient({ baseUrl: BASE, fetch });
     const { client, shutdown } = await bootClient(apiClient);
@@ -57,6 +59,8 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
       const result = await client.listTools();
       const names = result.tools.map((t) => t.name).sort();
       expect(names).toEqual([...TOOL_NAMES].sort());
+      expect(names).toContain('muovi_create_task_draft');
+      expect(names).toHaveLength(7);
       for (const tool of result.tools) {
         expect(tool.description).toBeTruthy();
         expect((tool.description ?? '').length).toBeGreaterThan(40);
@@ -170,6 +174,64 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
       expect(parsed.url).toBe(
         'https://muovi.com.ar/p/juan-p-electricista-caba?create_task=1&service=electricidad',
       );
+    } finally {
+      await shutdown();
+    }
+  });
+  it('annotates muovi_create_task_draft as a non-idempotent write and leaves muovi_create_task_link read-only', async () => {
+    const { fetch } = makeMockFetch([]);
+    const apiClient = new MuoviApiClient({ baseUrl: BASE, fetch });
+    const { client, shutdown } = await bootClient(apiClient);
+    try {
+      const { tools } = await client.listTools();
+      const draft = tools.find((t) => t.name === 'muovi_create_task_draft');
+      const link = tools.find((t) => t.name === 'muovi_create_task_link');
+      expect(draft?.annotations).toEqual({
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      });
+      expect(link?.annotations).toEqual({
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      });
+    } finally {
+      await shutdown();
+    }
+  });
+
+  it('muovi_create_task_draft POSTs via the SDK and returns the link', async () => {
+    const { fetch, calls } = makeMockFetch([
+      {
+        url: `${BASE}/task-handovers`,
+        status: 201,
+        body: {
+          url: 'https://muovi.com.ar/post-task#handover=QwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJk',
+          expires_at: '2026-09-15T14:50:09.123456+00:00',
+        },
+      },
+    ]);
+    const apiClient = new MuoviApiClient({ baseUrl: BASE, fetch });
+    const { client, shutdown } = await bootClient(apiClient);
+    try {
+      const result = await client.callTool({
+        name: 'muovi_create_task_draft',
+        arguments: {
+          service_slug: 'electricidad',
+          description: 'Se corta la luz cuando prendo el horno y el aire a la vez.',
+        },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(calls).toEqual([{ url: `${BASE}/task-handovers`, method: 'POST' }]);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      const parsed = JSON.parse(text);
+      expect(parsed.url).toBe(
+        'https://muovi.com.ar/post-task#handover=QwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJk',
+      );
+      expect(parsed.expires_at).toBe('2026-09-15T14:50:09.123Z');
     } finally {
       await shutdown();
     }
