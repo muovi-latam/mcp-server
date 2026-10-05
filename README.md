@@ -14,13 +14,14 @@ Every tool is read-only except `muovi_create_task_draft`, which saves a draft on
 
 | Tool | Wraps | Purpose |
 | --- | --- | --- |
-| `muovi_search_professionals` | `GET /v1/professionals` | Search verified pros by service, city, neighborhood, verification status, min rating, min review count. |
-| `muovi_get_professional` | `GET /v1/professionals/{slug}` | Fetch a single pro's full public profile (bio, portfolio, specialties, verifications). |
-| `muovi_list_services` | `GET /v1/services` | The full live service catalog. |
+| `muovi_search_professionals` | `GET /v1/professionals` | Up to 5 professionals for one service in one barrio. `service` and `neighborhood` are both required; every result has a coverage area that includes the barrio, and `match` names the service, barrio and city searched. Results list professionals who declare the searched trade first, ordered by review score, with verified identity, background check and matrícula counting toward it; professionals whose registered business is in another trade come last; there is no rating or review filter. Each result has one `rating`, one `review_count`, its `verifications`, up to 3 `portfolio` image URLs, an `id` and a `profile_url` (`https://muovi.com.ar/profile/<id>`), and no `neighborhoods`. |
+| `muovi_get_professional` | `GET /v1/professionals/{id}` | Fetch a single pro's full public profile (bio, portfolio, specialties, verifications) by the `id` from the search. A ProSite slug from an older link is also accepted. |
+| `muovi_list_services` | `GET /v1/services` | The full live service catalog — home trades (electricidad, plomería, gas, pintura, carpintería, cerrajería, albañilería, herrería, techista), limpieza, jardinería, aire acondicionado, plus moving/hauling: `mudanzas` (movers) and `fletes` (light freight). |
 | `muovi_list_cities` | `GET /v1/cities` | Every Argentine city Muovi serves, with neighborhoods. |
-| `muovi_get_reviews` | `GET /v1/professionals/{slug}/reviews` | Paginated reviews for a pro, most-recent first. |
-| `muovi_create_task_link` | (pure formatter) | Builds the canonical deep-link the user should follow to start a task with a specific pro for a specific service. Makes no HTTP call. |
-| `muovi_create_task_draft` | `POST /v1/task-handovers` | Saves a task draft (service, description, optional zone, preferred time and professional) and returns a link that expires in 24 hours if nobody signs in with it. The user opens it, signs in, reviews the draft and publishes it; the tool publishes nothing. With a professional, publishing may hold the task for that pro for 24 hours if they are still available on Muovi. |
+| `muovi_get_reviews` | `GET /v1/professionals/{id}/reviews` | Paginated reviews for a pro, most-recent first, by the same `id`. |
+| `muovi_create_task_link` | (pure formatter) | Builds a link to Muovi's own task creation for one professional (`professional_id`, the search's `id`) and one service: `https://muovi.com.ar/post-task/v2?pro=<id>&vertical=<service>&source=assistant-link`. It works for every professional in the results. A missing or malformed argument is a tool error. Makes no HTTP call. |
+| `muovi_get_service_requirements` | `GET /v1/services/{service_slug}/requirements` | Lists the questions Muovi asks for one service (key, question in Spanish, type, accepted options, required or not), so the agent can ask the user before saving a draft. |
+| `muovi_create_task_draft` | `POST /v1/task-handovers` | Saves a task draft (service, description, optional zone, preferred time and professional) and returns a link that expires in 24 hours if nobody opens it. The user opens it, reviews the draft, signs in and publishes it; the tool publishes nothing. With `professional_id` (the search's `id`), the published task goes to that pro first for 24 hours and then opens to everyone; with `open_to_others: true` it opens to everyone right away and that pro is still told. The user can change that choice on the review form. |
 
 ## Anti-leakage policy
 
@@ -122,6 +123,8 @@ You can also override the API base URL for testing:
 MUOVI_API_BASE_URL=https://staging.muovi.com.ar/api/v1 npx -y @muovi/mcp-server
 ```
 
+`muovi_create_task_link` builds its link on `MUOVI_WEB_BASE_URL` when that is an https origin with no path, and on `https://muovi.com.ar` otherwise.
+
 ## Example agent workflow
 
 A typical Claude conversation that uses these tools:
@@ -129,11 +132,11 @@ A typical Claude conversation that uses these tools:
 1. User asks for "an electrician in Palermo who's properly licensed".
 2. Agent calls `muovi_list_services` to map "electrician" → `electricidad`.
 3. Agent calls `muovi_list_cities` to confirm `palermo` is a valid neighborhood under `caba`.
-4. Agent calls `muovi_search_professionals` with `{ service: "electricidad", city: "caba", neighborhood: "palermo", has_matricula: true, min_rating: 4.5 }`.
-5. Agent picks the top pro and calls `muovi_get_professional` for the full bio + portfolio.
-6. Agent optionally calls `muovi_get_reviews` for social proof.
-7. Agent calls `muovi_create_task_link` with `{ professional_slug, service_slug: "electricidad" }` and surfaces the resulting URL — or calls `muovi_create_task_draft` with `{ service_slug: "electricidad", professional_slug, description }` so the user lands on a draft already written.
-8. User follows the link, lands on Muovi, signs in, and publishes the task in the on-platform flow.
+4. Agent calls `muovi_search_professionals` with `{ service: "electricidad", neighborhood: "palermo", has_matricula: true }` and gets up to 5 professionals. Without both a service and a barrio the tool answers an error asking for them, so the agent asks the user first.
+5. Agent shows the results and offers two choices: a task for one of those professionals, or a general request to get offers from several.
+6. For one professional, the agent can call `muovi_get_professional` and `muovi_get_reviews` with that result's `id`.
+7. Agent calls `muovi_create_task_link` with `{ professional_id, service_slug: "electricidad" }` and surfaces the resulting URL — or calls `muovi_create_task_draft` with `{ service_slug: "electricidad", professional_id, description }` so the user lands on a draft already written. For a general request it calls `muovi_create_task_draft` without a professional.
+8. User follows the link, lands on Muovi, reviews the draft, signs in, and publishes the task in the on-platform flow.
 
 Step 8 — the on-platform flow — is where the task is published, and where payments and disputes run.
 

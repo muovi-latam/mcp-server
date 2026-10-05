@@ -1,7 +1,7 @@
 {
   "name": "@muovi/mcp-server",
   "mcpName": "ar.com.muovi/mcp-server",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "Model Context Protocol (MCP) server that exposes Muovi's public /v1 API to LLM agents (Claude Desktop, Cursor, Claude Code). Stdio mode.",
   "license": "MIT",
   "author": "Muovi <hola@muovi.com.ar> (https://muovi.com.ar)",

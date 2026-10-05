@@ -11,7 +11,7 @@ import { wrapToolError, wrapToolResult, type McpToolResult } from './_helpers.js
 export const LIST_SERVICES_NAME = 'muovi_list_services';
 
 export const LIST_SERVICES_DESCRIPTION =
-  'List every service category Muovi supports in Argentina (electricidad, plomería, pintura, etc.). Each entry has a stable `slug` (used as the `service` parameter on `muovi_search_professionals` and `muovi_create_task_link`), a human-readable `name`, an optional description, and a `requires_matricula` flag indicating whether listed professionals must hold a verified professional license. Call this first when you need to map a user\'s natural-language request to a Muovi service slug.';
+  'List every service category Muovi supports in Argentina — home trades (electricidad, plomería, gas, pintura, carpintería, cerrajería, albañilería, herrería, techista), limpieza, jardinería, aire acondicionado, and moving/hauling: mudanzas (movers) and fletes (light freight/hauling). Every listed professional is identity-verified and reviewed, with on-platform payment and dispute resolution. Each entry has a stable `slug` (used as the `service` parameter on `muovi_search_professionals` and `muovi_create_task_link`), a human-readable `name`, an optional description, and a `requires_matricula` flag indicating whether listed professionals must hold a verified professional license. Call this first when you need to map a user\'s natural-language request to a Muovi service slug.';
 
 /** This operation takes no parameters per the OpenAPI spec. */
 export const listServicesInputShape = {} as const;

@@ -10,15 +10,12 @@
 
 export const cleanProfessional = {
   id: '8e3c5b41-6f2a-4f7e-8b1d-2c0a9d8f6c11',
-  slug: 'juan-p-electricista-caba',
   display_name: 'Juan P.',
   headline: 'Electricista matriculado · CABA',
-  avatar_url: null,
+  // A storage URL of the shape the API returns: a 13-digit timestamp in the file name.
+  avatar_url:
+    'https://hyciaokddgtufwtptpcz.supabase.co/storage/v1/object/public/task-images/8e3c5b41-6f2a-4f7e-8b1d-2c0a9d8f6c11/avatar_1771234500000.jpg',
   city: { slug: 'caba', name: 'CABA' },
-  neighborhoods: [
-    { slug: 'palermo', name: 'Palermo' },
-    { slug: 'villa-crespo', name: 'Villa Crespo' },
-  ],
   services: [{ slug: 'electricidad', name: 'Electricidad' }],
   rating: 4.8,
   review_count: 142,
@@ -31,23 +28,40 @@ export const cleanProfessional = {
     background_check: true,
     // MOB-262: years_active removed from PublicVerifications.
   },
-  profile_url: 'https://muovi.com.ar/p/juan-p-electricista-caba',
+  // WEB-1055: up to 3 portfolio image URLs on a search result.
+  portfolio: [
+    'https://hyciaokddgtufwtptpcz.supabase.co/storage/v1/object/public/task-images/8e3c5b41-6f2a-4f7e-8b1d-2c0a9d8f6c11/portfolio/1771234567890-k3x9q7m2abc.jpg',
+  ],
+  // WEB-1039: the public profile page, not a ProSite.
+  profile_url: 'https://muovi.com.ar/profile/8e3c5b41-6f2a-4f7e-8b1d-2c0a9d8f6c11',
 } as const;
 
 export const cleanProfessionalDetail = {
   ...cleanProfessional,
+  // The base label stays on the detail payload.
+  neighborhoods: [
+    { slug: 'palermo', name: 'Palermo' },
+    { slug: 'villa-crespo', name: 'Villa Crespo' },
+  ],
   bio: 'Electricista matriculado con 12 años de experiencia en instalaciones residenciales y comerciales.',
   portfolio: [
-    'https://cdn.muovi.com.ar/portfolio/juan-p-1.jpg',
-    'https://cdn.muovi.com.ar/portfolio/juan-p-2.jpg',
+    'https://hyciaokddgtufwtptpcz.supabase.co/storage/v1/object/public/task-images/8e3c5b41-6f2a-4f7e-8b1d-2c0a9d8f6c11/portfolio/1771234567890-k3x9q7m2abc.jpg',
+    'https://hyciaokddgtufwtptpcz.supabase.co/storage/v1/object/public/task-images/8e3c5b41-6f2a-4f7e-8b1d-2c0a9d8f6c11/portfolio/1771234599999-9f3a01bc.jpg',
   ],
   specialties: ['Tableros', 'Iluminación LED'],
-  member_since: '2024-03-11T10:00:00Z',
+  // Postgres timestamptz as the API returns it, with microseconds.
+  member_since: '2024-03-11T10:00:00.251749+00:00',
 } as const;
 
 export const cleanSearchResponse = {
   data: [cleanProfessional],
-  pagination: { limit: 20, offset: 0, total: 1, has_more: false },
+  pagination: { limit: 5, offset: 0, total: 1, has_more: false },
+  match: {
+    basis: 'coverage_area_includes_neighborhood',
+    service: { slug: 'electricidad', name: 'Electricidad' },
+    neighborhood: { slug: 'palermo', name: 'Palermo' },
+    city: { slug: 'caba', name: 'CABA' },
+  },
 } as const;
 
 export const cleanServicesResponse = {
@@ -107,10 +121,9 @@ export const cleanReviewsResponse = {
 export const leakyProResponse = {
   data: {
     id: 'pro_01HXYZ',
-    slug: 'juan-electricista',
     display_name: 'Juan Electricista',
     rating: 4.8,
-    profile_url: 'https://muovi.com.ar/p/juan-electricista',
+    profile_url: 'https://muovi.com.ar/profile/pro_01HXYZ',
     // Forbidden-key categories (the walker stops at the key match).
     phone: '+54 9 11 1234-5678',
     email: 'juan@example.com',

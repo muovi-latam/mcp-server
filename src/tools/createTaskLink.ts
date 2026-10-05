@@ -1,44 +1,59 @@
 /**
  * Tool: muovi_create_task_link
  *
- * PURE STRING FORMATTER. Does NOT make any HTTP call. Does NOT write any
- * state on Muovi. Returns the canonical deep-link the LLM agent should
- * send the user to in order to start an on-platform task for a specific
- * pro and service.
+ * PURE STRING FORMATTER. Makes no HTTP call and writes no state on Muovi.
+ * Mirrors `supabase/functions/mcp-server/_tools/createTaskLink.ts`.
  *
- * The link format is the documented deep-link contract from
- * `public/openapi.yaml` (`info.description` → "Deep-link contract"):
+ * WEB-1039: the link opens Muovi's own task creation for one professional on
+ * the configured web origin, the page the profile button opens. Every argument
+ * is checked before a URL is built, so a missing one answers a tool error.
  *
- *   https://muovi.com.ar/p/{slug}?create_task=1&service={service-slug}
- *
- * MCP must never bypass platform UX (per MOB-141 acceptance criteria) —
- * actual task creation happens in Muovi's on-platform flow after the user
- * follows this link.
+ * This package ships without Muovi's spec catalogue, so `?vertical=` carries
+ * the service slug as given; the page pins a slug that names a spec vertical
+ * and opens its general assistant for any other.
  */
 import { z } from 'zod';
-import { wrapToolError, wrapToolResult, type McpToolResult } from './_helpers.js';
+import {
+  requireStringArg,
+  ToolArgumentError,
+  wrapToolError,
+  wrapToolResult,
+  type McpToolResult,
+} from './_helpers.js';
 
 export const CREATE_TASK_LINK_NAME = 'muovi_create_task_link';
 
 export const CREATE_TASK_LINK_DESCRIPTION =
-  'Build the canonical Muovi deep-link that opens the on-platform task creation flow pre-filled with a specific professional and service. Returns a URL of the form `https://muovi.com.ar/p/{slug}?create_task=1&service={service-slug}`. This is a pure formatter — it makes no network call and creates no task. After running it, surface the URL to the user so they can complete the booking on Muovi. Muovi never lets agents create tasks server-side; the consumer always sees the on-platform flow to confirm details.';
+  "Build a link that opens Muovi's own task creation for one professional and one service: pass the `id` of a result from `muovi_search_professionals` as `professional_id`, and a service slug from `muovi_list_services`. Any professional in the search results can be picked. When the person publishes the task, it goes to that professional first for 24 hours and then opens to everyone; on the form the person can choose to also receive offers from other professionals right away. The link opens Muovi's task form, not the professional's ProSite. This tool makes no network call and saves nothing: give the URL to the person, who completes the task on Muovi.";
 
-const DEFAULT_BASE_URL = 'https://muovi.com.ar';
+export const CREATE_TASK_LINK_NOTE =
+  "This link opens Muovi's task creation for this professional. Following it does not create a task; the person completes and publishes it on Muovi.";
 
-/** Strict slug validator: lowercase letters, digits, hyphens, dot. */
-const SLUG_REGEX = /^[a-z0-9][a-z0-9.\-]*$/;
+export const DEFAULT_WEB_BASE_URL = 'https://muovi.com.ar';
+
+/** Twins of `supabase/functions/_shared/directedTask/link.ts`, compared by a lockstep test. */
+export const DIRECTED_TASK_PATH = '/post-task/v2';
+export const DIRECTED_TASK_SOURCE = 'assistant-link';
+
+/** The shape of a professional `id` (twin of `PROFILE_ID_REGEX`). */
+export const PROFILE_ID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Twin of `SERVICE_SLUG_PATTERN` in `_shared/taskHandover/input.ts`. */
+export const SERVICE_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+
+const NOT_A_SERVICE_SLUG: ReadonlySet<string> = new Set(['undefined', 'null']);
 
 export const createTaskLinkInputShape = {
-  professional_slug: z
+  professional_id: z
     .string()
-    .min(1)
-    .regex(SLUG_REGEX, 'professional_slug must be a lowercase URL-safe slug.')
-    .describe('The professional\'s URL-safe slug (from `muovi_search_professionals` or `muovi_get_professional`).'),
+    .min(36)
+    .max(36)
+    .describe('The `id` of a professional from `muovi_search_professionals`.'),
   service_slug: z
     .string()
     .min(1)
-    .regex(SLUG_REGEX, 'service_slug must be a lowercase URL-safe slug.')
-    .describe('The service slug to pre-fill in the task flow (from `muovi_list_services`).'),
+    .regex(SERVICE_SLUG_PATTERN, 'service_slug must be a service slug from muovi_list_services.')
+    .describe('The service slug to start the task with (from `muovi_list_services`).'),
 } as const;
 
 const InputSchema = z.object(createTaskLinkInputShape);
@@ -46,36 +61,63 @@ export type CreateTaskLinkInput = z.infer<typeof InputSchema>;
 
 export interface CreateTaskLinkResult {
   url: string;
-  professional_slug: string;
+  professional_id: string;
   service_slug: string;
   note: string;
 }
 
 /**
- * Pure string interpolation. Exported separately so unit tests can call
- * it without instantiating the full MCP server.
+ * The web origin links are built on: `MUOVI_WEB_BASE_URL` when it is an https
+ * origin with no path, else {@link DEFAULT_WEB_BASE_URL}.
  */
-export function buildTaskLink(
-  professional_slug: string,
-  service_slug: string,
-  baseUrl: string = DEFAULT_BASE_URL,
-): string {
-  const base = baseUrl.replace(/\/+$/, '');
-  return `${base}/p/${encodeURIComponent(professional_slug)}?create_task=1&service=${encodeURIComponent(service_slug)}`;
+export function webOriginFrom(configured: string | undefined): string {
+  if (!configured) return DEFAULT_WEB_BASE_URL;
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:' || (url.pathname !== '/' && url.pathname !== '')) {
+      return DEFAULT_WEB_BASE_URL;
+    }
+    return url.origin;
+  } catch {
+    return DEFAULT_WEB_BASE_URL;
+  }
+}
+
+/** The link for an already validated professional id and service slug. */
+export function buildTaskLink(professionalId: string, serviceSlug: string, webOrigin: string = DEFAULT_WEB_BASE_URL): string {
+  const query = new URLSearchParams();
+  query.set('pro', professionalId.toLowerCase());
+  query.set('vertical', serviceSlug);
+  query.set('source', DIRECTED_TASK_SOURCE);
+  return `${webOrigin.replace(/\/+$/, '')}${DIRECTED_TASK_PATH}?${query.toString()}`;
+}
+
+/** Validates the arguments and builds the link. Throws {@link ToolArgumentError}. */
+export function buildTaskLinkFor(args: unknown, webOrigin: string): CreateTaskLinkResult {
+  const hint = 'Pass the `id` of a result from muovi_search_professionals.';
+  const professionalId = requireStringArg(args, 'professional_id', { hint });
+  if (!PROFILE_ID_REGEX.test(professionalId)) {
+    throw new ToolArgumentError(`professional_id is not valid. ${hint}`);
+  }
+  const serviceHint = 'Pass a service slug from muovi_list_services.';
+  const serviceSlug = requireStringArg(args, 'service_slug', { pattern: SERVICE_SLUG_PATTERN, hint: serviceHint });
+  // A serialised missing value is not a service; it would be written into the link as it is.
+  if (NOT_A_SERVICE_SLUG.has(serviceSlug)) {
+    throw new ToolArgumentError(`service_slug is not valid. ${serviceHint}`);
+  }
+  return {
+    url: buildTaskLink(professionalId, serviceSlug, webOrigin),
+    professional_id: professionalId.toLowerCase(),
+    service_slug: serviceSlug,
+    note: CREATE_TASK_LINK_NOTE,
+  };
 }
 
 export function makeCreateTaskLinkHandler(opts: { baseUrl?: string } = {}) {
-  const baseUrl = opts.baseUrl ?? process.env.MUOVI_WEB_BASE_URL ?? DEFAULT_BASE_URL;
-  return async (args: CreateTaskLinkInput): Promise<McpToolResult> => {
+  const webOrigin = webOriginFrom(opts.baseUrl ?? process.env.MUOVI_WEB_BASE_URL);
+  return async (args: unknown): Promise<McpToolResult> => {
     try {
-      const url = buildTaskLink(args.professional_slug, args.service_slug, baseUrl);
-      const payload: CreateTaskLinkResult = {
-        url,
-        professional_slug: args.professional_slug,
-        service_slug: args.service_slug,
-        note: 'This is a deep-link to the on-platform task creation flow. Following it does not create a task; the user completes the flow on Muovi.',
-      };
-      return wrapToolResult(payload, { source: CREATE_TASK_LINK_NAME, args });
+      return wrapToolResult(buildTaskLinkFor(args, webOrigin), { source: CREATE_TASK_LINK_NAME, args });
     } catch (err) {
       return wrapToolError(err, CREATE_TASK_LINK_NAME, args);
     }
