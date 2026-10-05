@@ -60,7 +60,9 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
       const names = result.tools.map((t) => t.name).sort();
       expect(names).toEqual([...TOOL_NAMES].sort());
       expect(names).toContain('muovi_create_task_draft');
-      expect(names).toHaveLength(7);
+      // WEB-1005 — the requirements tool joins the list.
+      expect(names).toContain('muovi_get_service_requirements');
+      expect(names).toHaveLength(8);
       for (const tool of result.tools) {
         expect(tool.description).toBeTruthy();
         expect((tool.description ?? '').length).toBeGreaterThan(40);
@@ -79,7 +81,7 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
     try {
       const result = await client.callTool({
         name: 'muovi_search_professionals',
-        arguments: { service: 'electricidad', city: 'caba' },
+        arguments: { service: 'electricidad', neighborhood: 'palermo', city: 'caba' },
       });
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       expect(JSON.parse(text)).toEqual(cleanSearchResponse);
@@ -91,7 +93,7 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
   it('muovi_get_professional returns the detail payload via the SDK', async () => {
     const { fetch } = makeMockFetch([
       {
-        url: `${BASE}/professionals/juan-p-electricista-caba`,
+        url: `${BASE}/professionals/${cleanProfessionalDetail.id}`,
         body: { data: cleanProfessionalDetail },
       },
     ]);
@@ -100,7 +102,7 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
     try {
       const result = await client.callTool({
         name: 'muovi_get_professional',
-        arguments: { slug: 'juan-p-electricista-caba' },
+        arguments: { id: cleanProfessionalDetail.id },
       });
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       expect(JSON.parse(text).data).toEqual(cleanProfessionalDetail);
@@ -143,7 +145,7 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
     try {
       const result = await client.callTool({
         name: 'muovi_get_reviews',
-        arguments: { slug: 'juan', limit: 5 },
+        arguments: { id: 'juan', limit: 5 },
       });
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       expect(JSON.parse(text)).toEqual(cleanReviewsResponse);
@@ -164,7 +166,7 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
       const result = await client.callTool({
         name: 'muovi_create_task_link',
         arguments: {
-          professional_slug: 'juan-p-electricista-caba',
+          professional_id: cleanProfessionalDetail.id,
           service_slug: 'electricidad',
         },
       });
@@ -172,7 +174,7 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       const parsed = JSON.parse(text);
       expect(parsed.url).toBe(
-        'https://muovi.com.ar/p/juan-p-electricista-caba?create_task=1&service=electricidad',
+        `https://muovi.com.ar/post-task/v2?pro=${cleanProfessionalDetail.id}&vertical=electricidad&source=assistant-link`,
       );
     } finally {
       await shutdown();

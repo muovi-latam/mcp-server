@@ -46,6 +46,12 @@ import {
   makeCreateTaskLinkHandler,
 } from './tools/createTaskLink.js';
 import {
+  GET_SERVICE_REQUIREMENTS_DESCRIPTION,
+  GET_SERVICE_REQUIREMENTS_NAME,
+  getServiceRequirementsInputShape,
+  makeGetServiceRequirementsHandler,
+} from './tools/getServiceRequirements.js';
+import {
   CREATE_TASK_DRAFT_NAME,
   CREATE_TASK_DRAFT_DESCRIPTION,
   createTaskDraftInputShape,
@@ -72,6 +78,7 @@ export const TOOL_NAMES = [
   LIST_CITIES_NAME,
   GET_REVIEWS_NAME,
   CREATE_TASK_LINK_NAME,
+  GET_SERVICE_REQUIREMENTS_NAME,
   CREATE_TASK_DRAFT_NAME,
 ] as const;
 
@@ -153,6 +160,17 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       },
     },
     makeCreateTaskLinkHandler({ baseUrl: opts.webBaseUrl }),
+  );
+
+  server.registerTool(
+    GET_SERVICE_REQUIREMENTS_NAME,
+    {
+      title: 'Get service requirements',
+      description: GET_SERVICE_REQUIREMENTS_DESCRIPTION,
+      inputSchema: getServiceRequirementsInputShape,
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    makeGetServiceRequirementsHandler(client),
   );
 
   server.registerTool(

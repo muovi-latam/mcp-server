@@ -35,15 +35,29 @@ export interface Leak {
 
 const MIN_PHONE_DIGITS = 8;
 const PHONE_GROUPING_CHARS = /[ \-().]/;
+// A full ISO-8601 timestamp is stripped as one token, before the date-only
+// strip: with the date gone, the fractional seconds of
+// `2025-08-13T11:40:14.251749+00:00` read as a grouped digit run.
+const ISO_TIMESTAMP_RE =
+  /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/g;
 const ISO_DATE_FRAGMENT_RE = /\d{4}-\d{2}-\d{2}/g;
 const UUID_FRAGMENT_RE =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+// A value that starts with http(s):// is exempt from the PHONE heuristic
+// only: a storage URL's file name carries a 13-digit timestamp beside a `-`
+// or `.`. The e-mail and wa.me checks still read the whole value, and
+// `tel:` / `mailto:` are not exempt.
+const ABSOLUTE_HTTP_URL_RE = /^https?:\/\//i;
 
 function stripNonPhoneTokens(value: string): string {
-  return value.replace(UUID_FRAGMENT_RE, '').replace(ISO_DATE_FRAGMENT_RE, '');
+  return value
+    .replace(UUID_FRAGMENT_RE, '')
+    .replace(ISO_TIMESTAMP_RE, '')
+    .replace(ISO_DATE_FRAGMENT_RE, '');
 }
 
 function isPhoneLike(value: string): boolean {
+  if (ABSOLUTE_HTTP_URL_RE.test(value.trim())) return false;
   const cleaned = stripNonPhoneTokens(value);
   const match = cleaned.match(LEAKAGE_VALUE_REGEXES.phone);
   if (!match) return false;

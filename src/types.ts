@@ -44,30 +44,28 @@ export interface Pagination {
 }
 
 export interface Professional {
+  /** WEB-1039: the identifier the other tools take. */
   id: string;
-  // WEB-393: the list emits the real published tenant_settings.slug, or `null`
-  // when the pro has no published pro-site (no live detail page). Never a UUID.
-  slug: string | null;
   display_name: string;
   headline?: string | null;
   avatar_url?: string | null;
+  /** In a search result (WEB-1055): the searched barrio's city. */
   city: CityRef;
-  neighborhoods: NeighborhoodRef[];
   services: ServiceRef[];
   rating: number;
   review_count: number;
   // MOB-262: years_active removed from the public contract.
   verifications: PublicVerifications;
-  // WEB-393: omitted entirely when there is no published slug.
-  profile_url?: string;
+  /** Portfolio image URLs: up to 3 in a search result (WEB-1055). */
+  portfolio: string[];
+  /** WEB-1039: the public profile page `<origin>/profile/<id>`. */
+  profile_url: string;
 }
 
 export interface ProfessionalDetail extends Professional {
-  // The detail endpoint only resolves published pros, so it always has a slug.
-  slug: string;
-  profile_url: string;
+  /** The professional's own base label. Not part of a search result (WEB-1055). */
+  neighborhoods: NeighborhoodRef[];
   bio: string | null;
-  portfolio: string[];
   specialties: string[];
   member_since: string;
 }
@@ -87,6 +85,18 @@ export interface Review {
 export interface ListResponse<T> {
   data: T[];
   pagination: Pagination;
+}
+
+/** WEB-1055: what a search matched on. `basis` is the rule every result met. */
+export interface SearchMatch {
+  basis: 'coverage_area_includes_neighborhood';
+  service: { slug: string; name: string };
+  neighborhood: NeighborhoodRef;
+  city: { slug: string; name: string };
+}
+
+export interface SearchResponse extends ListResponse<Professional> {
+  match: SearchMatch;
 }
 
 export interface DetailResponse<T> {

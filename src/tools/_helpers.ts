@@ -123,6 +123,57 @@ export function wrapToolError(
   };
 }
 
+// ── Argument validation (WEB-1039) ─────────────────────────────────
+// Mirrors `supabase/functions/mcp-server/_tools/_helpers.ts`.
+
+/**
+ * Thrown for a missing or malformed tool argument. `wrapToolError` turns it
+ * into an `isError` result, so a tool answers with what to fix instead of
+ * building a URL or a request around `undefined`.
+ */
+export class ToolArgumentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ToolArgumentError';
+  }
+}
+
+/** The arguments object a client sent, or an empty one. */
+export function toolArgs(args: unknown): Record<string, unknown> {
+  return args !== null && typeof args === 'object' && !Array.isArray(args)
+    ? (args as Record<string, unknown>)
+    : {};
+}
+
+/**
+ * A required string argument, trimmed. Throws {@link ToolArgumentError} when
+ * it is absent, not a string, blank, or does not match `pattern`.
+ */
+export function requireStringArg(
+  args: unknown,
+  name: string,
+  opts: { readonly pattern?: RegExp; readonly hint?: string } = {},
+): string {
+  const value = toolArgs(args)[name];
+  const hint = opts.hint ? ` ${opts.hint}` : '';
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new ToolArgumentError(`${name} is required.${hint}`);
+  }
+  const trimmed = value.trim();
+  if (opts.pattern && !opts.pattern.test(trimmed)) {
+    throw new ToolArgumentError(`${name} is not valid.${hint}`);
+  }
+  return trimmed;
+}
+
+/** An optional boolean argument; `undefined` when absent. Throws for any other type. */
+export function optionalBooleanArg(args: unknown, name: string): boolean | undefined {
+  const value = toolArgs(args)[name];
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'boolean') throw new ToolArgumentError(`${name} must be true or false.`);
+  return value;
+}
+
 export function formatErrorMessage(err: unknown, source: string): string {
   if (err instanceof RateLimitedError) {
     const retry =

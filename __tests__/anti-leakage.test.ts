@@ -2,8 +2,7 @@
  * MCP server anti-leakage assertion test.
  *
  * MOB-146's surface registry references THIS path
- * (`__tests__/anti-leakage.test.ts` — was `packages/mcp-server/__tests__/anti-leakage.test.ts`
- * before the standalone-repo split) — keep it stable.
+ * (`packages/mcp-server/__tests__/anti-leakage.test.ts`) — keep it stable.
  *
  * Defense-in-depth: the /v1 API already strips contact data, but every
  * tool response in the MCP server also runs through `assertNoLeakage`.
@@ -47,6 +46,41 @@ describe('assertNoLeakage — mirrored canonical fixture', () => {
   });
 });
 
+describe('findLeaks — storage URLs and ISO timestamps (WEB-1055)', () => {
+  const reasons = (value: string) => findLeaks({ value }).map((leak) => leak.reason);
+  const STORAGE =
+    'https://hyciaokddgtufwtptpcz.supabase.co/storage/v1/object/public/task-images/8e3c5b41-6f2a-4f7e-8b1d-2c0a9d8f6c11';
+
+  it('does not read the timestamp in a storage URL file name as a phone', () => {
+    expect(reasons(`${STORAGE}/portfolio/1771234567890-k3x9q7m2abc.jpg`)).toEqual([]);
+    expect(reasons(`${STORAGE}/avatar_1771234500000.jpg`)).toEqual([]);
+  });
+
+  it('still reads the same digits as a phone outside an http(s) URL, after other text, and in a tel: URI', () => {
+    expect(reasons('avatar_1771234500000.jpg')).toEqual(['phone_pattern']);
+    expect(reasons(`Ver ${STORAGE}/avatar_1771234500000.jpg`)).toEqual(['phone_pattern']);
+    expect(reasons('tel:+5491155551234')).toEqual(['phone_pattern']);
+  });
+
+  it('still flags an e-mail and a wa.me link inside an http(s) URL', () => {
+    expect(reasons('https://juan@example.com/a.jpg')).toEqual(['email_pattern']);
+    expect(reasons(`${STORAGE}/juan@gmail.com.jpg`)).toEqual(['email_pattern']);
+    expect(reasons('https://wa.me/5491155551234')).toEqual(['whatsapp_pattern']);
+  });
+
+  it('does not read an ISO timestamp with fractional seconds as a phone, with or without a zone', () => {
+    expect(reasons('2025-08-13T11:40:14.251749+00:00')).toEqual([]);
+    expect(reasons('2025-08-13T11:40:14.251749Z')).toEqual([]);
+    expect(reasons('2025-08-13T11:40:14.251749')).toEqual([]);
+    expect(reasons('2025-08-13T11:40:14.251749123Z')).toEqual([]);
+    expect(reasons('2024-03-11T10:00:00Z')).toEqual([]);
+  });
+
+  it('still flags a phone written after a timestamp', () => {
+    expect(reasons('2025-08-13T11:40:14.251749+00:00 11-5555-1234')).toEqual(['phone_pattern']);
+  });
+});
+
 describe('MCP tool runtime — leak detector fires at the agent boundary', () => {
   it('muovi_get_professional surfaces a tool error when the /v1 response leaks', async () => {
     const { fetch } = makeMockFetch([
@@ -55,7 +89,7 @@ describe('MCP tool runtime — leak detector fires at the agent boundary', () =>
     const client = new MuoviApiClient({ baseUrl: BASE, fetch });
     const handler = makeGetProfessionalHandler(client);
 
-    const result = await handler({ slug: 'juan-electricista' });
+    const result = await handler({ id: 'juan-electricista' });
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toMatch(/Anti-leakage violation/);
@@ -75,7 +109,7 @@ describe('MCP tool runtime — leak detector fires at the agent boundary', () =>
     const client = new MuoviApiClient({ baseUrl: BASE, fetch });
     const handler = makeSearchProfessionalsHandler(client);
 
-    const result = await handler({ service: 'electricidad' });
+    const result = await handler({ service: 'electricidad', neighborhood: 'palermo' });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toMatch(/Anti-leakage violation/);
   });
@@ -86,7 +120,7 @@ describe('MCP tool runtime — leak detector fires at the agent boundary', () =>
     ]);
     const client = new MuoviApiClient({ baseUrl: BASE, fetch });
     const handler = makeSearchProfessionalsHandler(client);
-    const result = await handler({ service: 'electricidad' });
+    const result = await handler({ service: 'electricidad', neighborhood: 'palermo' });
     expect(result.isError).toBeUndefined();
   });
 });
