@@ -188,6 +188,12 @@ describe('@muovi/mcp-server — stdio integration (in-memory transport pair)', (
       const { tools } = await client.listTools();
       const draft = tools.find((t) => t.name === 'muovi_create_task_draft');
       const link = tools.find((t) => t.name === 'muovi_create_task_link');
+      // ChatGPT's plugin scan rejects a tool that leaves any of these three to the protocol default.
+      for (const tool of tools) {
+        for (const hint of ['readOnlyHint', 'destructiveHint', 'openWorldHint'] as const) {
+          expect(typeof tool.annotations?.[hint], `${tool.name}.${hint}`).toBe('boolean');
+        }
+      }
       expect(draft?.annotations).toEqual({
         readOnlyHint: false,
         destructiveHint: false,

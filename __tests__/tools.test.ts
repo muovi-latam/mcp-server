@@ -595,8 +595,8 @@ describe('MuoviApiClient — auth + rate limiting', () => {
     await client.post('/task-handovers', {});
 
     expect(requests.map((request) => request.headers['User-Agent'])).toEqual([
-      'muovi-mcp-server/0.4.0 (+https://muovi.com.ar)',
-      'muovi-mcp-server/0.4.0 (+https://muovi.com.ar)',
+      'muovi-mcp-server/0.4.1 (+https://muovi.com.ar)',
+      'muovi-mcp-server/0.4.1 (+https://muovi.com.ar)',
     ]);
   });
 
