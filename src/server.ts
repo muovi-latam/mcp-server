@@ -96,7 +96,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Search professionals',
       description: SEARCH_PROFESSIONALS_DESCRIPTION,
       inputSchema: searchProfessionalsInputShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeSearchProfessionalsHandler(client),
   );
@@ -107,7 +107,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Get professional',
       description: GET_PROFESSIONAL_DESCRIPTION,
       inputSchema: getProfessionalInputShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeGetProfessionalHandler(client),
   );
@@ -118,7 +118,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'List services',
       description: LIST_SERVICES_DESCRIPTION,
       inputSchema: listServicesInputShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeListServicesHandler(client),
   );
@@ -129,7 +129,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'List cities',
       description: LIST_CITIES_DESCRIPTION,
       inputSchema: listCitiesInputShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeListCitiesHandler(client),
   );
@@ -140,7 +140,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Get reviews',
       description: GET_REVIEWS_DESCRIPTION,
       inputSchema: getReviewsInputShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeGetReviewsHandler(client),
   );
@@ -168,7 +168,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Get service requirements',
       description: GET_SERVICE_REQUIREMENTS_DESCRIPTION,
       inputSchema: getServiceRequirementsInputShape,
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeGetServiceRequirementsHandler(client),
   );
