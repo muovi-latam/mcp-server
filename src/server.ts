@@ -96,7 +96,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Search professionals',
       description: SEARCH_PROFESSIONALS_DESCRIPTION,
       inputSchema: searchProfessionalsInputShape,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+      annotations: { title: 'Search professionals', readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeSearchProfessionalsHandler(client),
   );
@@ -107,7 +107,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Get professional',
       description: GET_PROFESSIONAL_DESCRIPTION,
       inputSchema: getProfessionalInputShape,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+      annotations: { title: 'Get professional', readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeGetProfessionalHandler(client),
   );
@@ -118,7 +118,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'List services',
       description: LIST_SERVICES_DESCRIPTION,
       inputSchema: listServicesInputShape,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+      annotations: { title: 'List services', readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeListServicesHandler(client),
   );
@@ -129,7 +129,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'List cities',
       description: LIST_CITIES_DESCRIPTION,
       inputSchema: listCitiesInputShape,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+      annotations: { title: 'List cities', readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeListCitiesHandler(client),
   );
@@ -140,7 +140,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Get reviews',
       description: GET_REVIEWS_DESCRIPTION,
       inputSchema: getReviewsInputShape,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+      annotations: { title: 'Get reviews', readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeGetReviewsHandler(client),
   );
@@ -148,10 +148,11 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
   server.registerTool(
     CREATE_TASK_LINK_NAME,
     {
-      title: 'Create task deep-link',
+      title: 'Create task link',
       description: CREATE_TASK_LINK_DESCRIPTION,
       inputSchema: createTaskLinkInputShape,
       annotations: {
+        title: 'Create task link',
         readOnlyHint: true,
         // Pure formatter — no side effects, no network.
         destructiveHint: false,
@@ -168,7 +169,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       title: 'Get service requirements',
       description: GET_SERVICE_REQUIREMENTS_DESCRIPTION,
       inputSchema: getServiceRequirementsInputShape,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+      annotations: { title: 'Get service requirements', readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     makeGetServiceRequirementsHandler(client),
   );
@@ -180,6 +181,7 @@ export function buildServer(opts: BuildServerOptions = {}): McpServer {
       description: CREATE_TASK_DRAFT_DESCRIPTION,
       inputSchema: createTaskDraftInputShape,
       annotations: {
+        title: 'Create task draft',
         // Stores a draft on Muovi; each call stores a new one.
         readOnlyHint: false,
         destructiveHint: false,

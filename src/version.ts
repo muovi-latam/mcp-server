@@ -4,4 +4,4 @@
  */
 
 export const PACKAGE_NAME = '@muovi/mcp-server';
-export const PACKAGE_VERSION = '0.4.1';
+export const PACKAGE_VERSION = '0.4.2';
