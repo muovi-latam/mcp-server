@@ -84,7 +84,7 @@ describe('server.json — MCP registry manifest mirrors package + source', () =>
 
     expect(server.version).toBe(pkg.version);
     expect(server.version).toBe(PACKAGE_VERSION);
-    expect(PACKAGE_VERSION).toBe('0.4.1');
+    expect(PACKAGE_VERSION).toBe('0.4.2');
     expect(server.packages).toHaveLength(1);
     expect(server.packages[0]?.version).toBe(PACKAGE_VERSION);
   });
